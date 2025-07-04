@@ -1,56 +1,108 @@
-import 'package:fluter/main.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'profile_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async'; // Necessário para Timer
+import 'profile_page.dart'; // Certifique-se de que este arquivo existe e está no mesmo nível ou caminho correto
+import 'package:cloud_firestore/cloud_firestore.dart'; // Importa o Cloud Firestore
+import 'firebase_options.dart'; // Importa as opções do Firebase
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 
 Future<void> main() async {
+  // Garante que o binding do Flutter esteja inicializado antes de qualquer chamada nativa, incluindo o Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inicializa o Firebase com as opções da plataforma atual
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(MyApp());
+  runApp(
+    const PomodoroApp(),
+  ); // Altere de MyApp() para PomodoroApp() ou Pomodoro() diretamente
+}
+
+// Uma classe para o app, que serve como raiz da árvore de widgets
+class PomodoroApp extends StatelessWidget {
+  const PomodoroApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Pomodoro Timer',
+      theme: ThemeData(
+        primarySwatch: Colors.blue, // Você pode ajustar o tema aqui
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Usando o esquema de cores que você indicou para o AppBar e outras partes
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF011D3A), // Deep Space
+          foregroundColor: Color(
+            0xFFD0E1FF,
+          ), // Code Comment para o texto e ícones
+        ),
+      ),
+      home: const Pomodoro(),
+    );
+  }
 }
 
 class Pomodoro extends StatefulWidget {
+  const Pomodoro({super.key}); // Adicionado const e Key para boas práticas
+
   @override
-  _Pomodoro createState() => _Pomodoro();
+  _PomodoroState createState() => _PomodoroState();
 }
 
-class _Pomodoro extends State<Pomodoro> {
-  int _seconds = 1500;
+class _PomodoroState extends State<Pomodoro> {
+  int _seconds = 1500; // 25 minutos
   Timer? _timer;
+  String _ideia =
+      'Carregando Ideia...'; // Variável para armazenar a ideia do Firestore
+
+  @override
+  void initState() {
+    super.initState();
+    _getIdea(); // Chama a função para buscar a ideia do Firestore quando o widget for inicializado
+  }
 
   void _startCountdown() {
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer
+        ?.cancel(); // Cancela qualquer timer anterior para evitar múltiplos timers
+    _seconds = 1500; // Reinicia o contador para 25 minutos
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_seconds > 0) {
           _seconds--;
         } else {
-          _timer?.cancel();
+          _timer?.cancel(); // Para o timer quando chega a zero
+          // Adicione aqui a lógica para o intervalo (ex: 5 minutos de pausa) se desejar
         }
       });
     });
   }
 
-  Map<String, dynamic> _ideia = {};
-
+  int c = 0; // Variável para controlar o ID do documento
   Future<void> _getIdea() async {
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance
-        .collection("Ideias")
-        .doc("1")
-        .get();
+    try {
+      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+          .collection("Ideias") // Nome da coleção
+          .doc("$c") // ID do documento
+          .get();
+      if (c < 4) {
+        c++; // Reseta o contador para evitar IDs fora do intervalo
+      } else {
+        c = 0; // Reseta o contador para evitar IDs fora do intervalo
+      }
 
-    //Caso não exite o documento usuario 1, ele direciona para o usario
-    if (!snapshot.exists) {
+      if (!snapshot.exists) {
+        setState(() {
+          _ideia = 'Documento de ideia não encontrado.';
+        });
+      } else {
+        // Acessa o campo 'Ideia' (com 'I' maiúsculo) como está no seu Firestore
+        final ideiaDoFirestore = snapshot['ideia'];
+        setState(() {
+          _ideia = ideiaDoFirestore ?? 'Campo "Ideia" ausente ou nulo.';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _ideia = {};
+        _ideia = 'Erro ao carregar ideia: $e';
       });
-    }
-    // Se deu certo ele vem para e executa o setState da coleção
-    else {
-      setState(() {
-        _ideia["nome"] = snapshot["nome"];
-      });
+      print('Erro ao carregar ideia do Firestore: $e'); // Para depuração
     }
   }
 
@@ -65,25 +117,27 @@ class _Pomodoro extends State<Pomodoro> {
 
   @override
   void dispose() {
-    _timer?.cancel(); // Cancela o timer ao destruir o widget
+    _timer
+        ?.cancel(); // Cancela o timer ao destruir o widget para evitar vazamentos de memória
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF011D3A), // Deep Space
+      backgroundColor: const Color(0xFF011D3A), // Deep Space
 
       appBar: AppBar(
-        backgroundColor: Color(0xFF011D3A), // Deep Space
-        title: Text(
+        title: const Text(
           "Pomodoro Timer",
           style: TextStyle(color: Color(0xFFD0E1FF)), // Code Comment
         ),
-        iconTheme: IconThemeData(color: Color(0xFFD0E1FF)),
+        iconTheme: const IconThemeData(
+          color: Color(0xFFD0E1FF),
+        ), // Cor dos ícones da AppBar
         actions: [
           IconButton(
-            icon: Icon(Icons.person),
+            icon: const Icon(Icons.person),
             onPressed: () {
               Navigator.push(
                 context,
@@ -100,40 +154,57 @@ class _Pomodoro extends State<Pomodoro> {
           children: [
             Text(
               _formatTime(_seconds),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF00F6FF), // Cyber Teal
               ),
             ),
-            SizedBox(height: 20),
-            Text(
-              'Fala, Dev , bora codar?',
+            const SizedBox(height: 20),
+            const Text(
+              'Fala, Dev, bora codar?',
               style: TextStyle(
                 fontSize: 20,
                 color: Color(0xFFD0E1FF), // Code Comment
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _startCountdown,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF00F6FF), // Cyber Teal
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: const Color(0xFF00F6FF), // Cyber Teal
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
-              child: Text(
-                "Iniciar _Pomodoro",
+              child: const Text(
+                "Iniciar Pomodoro", // Ajustado o texto
                 style: TextStyle(
                   color: Color(0xFF011D3A), // Deep Space (inverso no texto)
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
+            const SizedBox(height: 20), // Espaçamento entre os botões
             ElevatedButton(
-              onPressed: _getIdea,
+              onPressed:
+                  _getIdea, // Passa a referência da função, não a chamada
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors
+                    .deepOrange, // Exemplo de cor diferente para este botão
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
               child: Text(
-                _ideia.isNotEmpty ? _ideia["nome"].toString() : "Buscar Ideia",
+                'IDEIA : $_ideia', // Exibe a ideia carregada
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
