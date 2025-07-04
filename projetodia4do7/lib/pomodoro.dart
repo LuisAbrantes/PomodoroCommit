@@ -12,6 +12,8 @@ Future<void> main() async {
 }
 
 class Pomodoro extends StatefulWidget {
+  const Pomodoro({super.key});
+
   @override
   _Pomodoro createState() => _Pomodoro();
 }

@@ -3,6 +3,8 @@ import 'profile_page.dart';
 import 'pomodoro.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -58,7 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             TextButton(
-              child: Text("Iniciar Pomodoro"),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -69,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: Color(0xFF00F6FF), // Cyber Teal
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
+              child: Text("Iniciar Pomodoro"),
             ),
           ],
         ),
